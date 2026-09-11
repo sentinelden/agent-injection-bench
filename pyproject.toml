@@ -1,0 +1,28 @@
+[project]
+name = "agent-injection-bench"
+version = "0.1.0"
+description = "An open benchmark for prompt injection against tool-calling agents."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+http = ["httpx>=0.27"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+aib = "aib.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["aib*"]
+
+[tool.setuptools.package-data]
+aib = ["../data/*.jsonl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

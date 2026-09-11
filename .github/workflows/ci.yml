@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e '.[dev]'
+      - run: pytest -q
+      # The corpus is data, and data rots silently. Validating it in CI means
+      # a malformed attack fails the build rather than quietly shrinking the
+      # benchmark and improving everyone's scores.
+      - run: aib validate
+      # The naive reference target must stay compromised. If it ever scores
+      # clean, the corpus has stopped working and every number in the
+      # benchmark is meaningless -- so this is a hard failure, not a report.
+      - name: Corpus still bites
+        run: |
+          aib run --target naive --defense none --quiet --json --output /tmp/baseline.json
+          python - <<'PY'
+          import json, sys
+          rate = json.load(open("/tmp/baseline.json"))["summary"]["compromise_rate"]
+          print(f"naive/none compromise rate: {rate:.1%}")
+          if rate < 0.3:
+              sys.exit(f"corpus regression: naive baseline fell to {rate:.1%}, expected >30%")
+          PY
