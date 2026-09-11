@@ -80,7 +80,7 @@ aib describe ex-001
 
 **Families** — `instruction_override`, `context_termination`, `authority_claim`, `data_exfiltration`, `tool_redirection`, `encoding`, `role_play`, `conversation_hijack`, plus `baseline` and `control`
 
-The corpus is one JSONL file at [`data/attacks.jsonl`](data/attacks.jsonl) — diffable, and a PR adding an attack is reviewable as text. Schema and field semantics are documented in [`aib/dataset.py`](aib/dataset.py).
+The corpus is one JSONL file at [`aib/data/attacks.jsonl`](aib/data/attacks.jsonl) — diffable, and a PR adding an attack is reviewable as text. Schema and field semantics are documented in [`aib/dataset.py`](aib/dataset.py).
 
 ### Success criteria
 

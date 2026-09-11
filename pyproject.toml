@@ -22,7 +22,7 @@ build-backend = "setuptools.build_meta"
 include = ["aib*"]
 
 [tool.setuptools.package-data]
-aib = ["../data/*.jsonl"]
+aib = ["data/*.jsonl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

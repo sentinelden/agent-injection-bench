@@ -27,7 +27,10 @@ jobs:
       # benchmark is meaningless -- so this is a hard failure, not a report.
       - name: Corpus still bites
         run: |
-          aib run --target naive --defense none --quiet --json --output /tmp/baseline.json
+          # `aib run` exits 1 whenever anything was compromised, which is the
+          # expected outcome here: the naive target is meant to lose. Ignore
+          # the exit code and assert on the recorded rate instead.
+          aib run --target naive --defense none --quiet --json --output /tmp/baseline.json || true
           python - <<'PY'
           import json, sys
           rate = json.load(open("/tmp/baseline.json"))["summary"]["compromise_rate"]

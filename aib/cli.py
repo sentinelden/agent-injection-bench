@@ -17,7 +17,8 @@ from . import adapters, dataset, defenses
 from .adapters import reference  # noqa: F401  -- registers built-in targets
 from .harness import Result, Summary, run, summarise
 
-DEFAULT_CORPUS = Path(__file__).resolve().parent.parent / "data" / "attacks.jsonl"
+# Inside the package, so it survives a non-editable `pip install`.
+DEFAULT_CORPUS = Path(__file__).resolve().parent / "data" / "attacks.jsonl"
 
 
 def _load(path: str | None) -> list[dataset.Attack]:
