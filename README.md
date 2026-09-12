@@ -32,9 +32,16 @@ Most published prompt-injection results are hard to compare and harder to reprod
 ## Install
 
 ```sh
-pip install agent-injection-bench          # core, no dependencies
-pip install 'agent-injection-bench[http]'  # adds the OpenAI-compatible adapter
+pip install git+https://github.com/sentinelden/agent-injection-bench
 ```
+
+The core has no dependencies. Add the OpenAI-compatible adapter with:
+
+```sh
+pip install 'agent-injection-bench[http] @ git+https://github.com/sentinelden/agent-injection-bench'
+```
+
+*(Not on PyPI yet — `pip install agent-injection-bench` will work once it is.)*
 
 From source:
 
