@@ -3,7 +3,8 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
-dist/
+
 build/
 .pytest_cache/
 results*.json
+dist/
