@@ -13,5 +13,6 @@ each precisely so the gaps stay visible.
 
 from .base import Defense, register, get, available
 from . import builtin  # noqa: F401  -- registers the built-ins
+from . import lora_sanitizer  # noqa: F401  -- registers a shipped production filter
 
 __all__ = ["Defense", "register", "get", "available"]
