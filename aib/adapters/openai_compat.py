@@ -26,6 +26,7 @@ class OpenAICompatAgent:
         api_key: str | None = None,
         temperature: float = 0.0,
         timeout: float = 60.0,
+        max_tool_rounds: int = 2,
     ) -> None:
         self.base_url = (base_url or os.environ.get("AIB_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
         self.model = model
@@ -34,6 +35,7 @@ class OpenAICompatAgent:
         # runs for sampling reasons cannot be used to compare defenses.
         self.temperature = temperature
         self.timeout = timeout
+        self.max_tool_rounds = int(max_tool_rounds)
         self.name = f"openai-compat:{model}"
 
     def __call__(self, scenario: Scenario) -> AgentResponse:
@@ -70,37 +72,64 @@ class OpenAICompatAgent:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        try:
-            response = httpx.post(
-                f"{self.base_url}/chat/completions",
-                json=payload,
-                headers=headers,
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            body = response.json()
-        except Exception as exc:  # noqa: BLE001 - surfaced as an ERROR outcome
-            return AgentResponse(error=f"{type(exc).__name__}: {exc}")
-
-        try:
-            message = body["choices"][0]["message"]
-        except (KeyError, IndexError) as exc:
-            return AgentResponse(error=f"unexpected response shape: {exc}")
-
+        # Tool loop. The harness docstring promises that a tool call is
+        # answered from the attack's canned result; without this loop an API
+        # target never sees a `tool_result` injection at all, and a third of
+        # the corpus scores as "resisted" for the wrong reason. Every call the
+        # model emits in any round is recorded, because the decision to call
+        # a forbidden tool is complete the moment it is emitted.
         calls: list[ToolCall] = []
-        for raw in message.get("tool_calls") or []:
-            function = raw.get("function", {})
-            arguments = function.get("arguments", "{}")
-            if isinstance(arguments, str):
-                try:
-                    arguments = json.loads(arguments)
-                except json.JSONDecodeError:
-                    # Malformed arguments are themselves interesting: the call
-                    # still happened, so record it rather than dropping it.
-                    arguments = {"_raw": arguments}
-            calls.append(ToolCall(name=function.get("name", ""), arguments=arguments))
+        text_parts: list[str] = []
+        for _round in range(self.max_tool_rounds + 1):
+            try:
+                response = httpx.post(
+                    f"{self.base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
+                body = response.json()
+            except Exception as exc:  # noqa: BLE001 - surfaced as an ERROR outcome
+                return AgentResponse(error=f"{type(exc).__name__}: {exc}")
 
-        return AgentResponse(text=message.get("content") or "", tool_calls=calls)
+            try:
+                message = body["choices"][0]["message"]
+            except (KeyError, IndexError) as exc:
+                return AgentResponse(error=f"unexpected response shape: {exc}")
+
+            if message.get("content"):
+                text_parts.append(message["content"])
+
+            raw_calls = message.get("tool_calls") or []
+            round_calls: list[ToolCall] = []
+            for raw in raw_calls:
+                function = raw.get("function", {})
+                arguments = function.get("arguments", "{}")
+                if isinstance(arguments, str):
+                    try:
+                        arguments = json.loads(arguments)
+                    except json.JSONDecodeError:
+                        # Malformed arguments are themselves interesting: the call
+                        # still happened, so record it rather than dropping it.
+                        arguments = {"_raw": arguments}
+                round_calls.append(ToolCall(name=function.get("name", ""), arguments=arguments))
+            calls.extend(round_calls)
+
+            if not raw_calls or _round == self.max_tool_rounds:
+                break
+
+            # Answer every call from the canned results and go around again.
+            payload["messages"].append(message)
+            for raw in raw_calls:
+                name = raw.get("function", {}).get("name", "")
+                payload["messages"].append({
+                    "role": "tool",
+                    "tool_call_id": raw.get("id", name),
+                    "content": scenario.tool_results.get(name, ""),
+                })
+
+        return AgentResponse(text="\n".join(text_parts), tool_calls=calls)
 
 
 @register("openai-compat")
