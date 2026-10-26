@@ -29,7 +29,7 @@ So every attack here declares a machine-checkable success condition:
                making the agent useless.
 
 The cost of this approach is expressiveness: attacks whose success is
-genuinely a judgement call cannot be encoded. That is a trade we take
+genuinely a judgment call cannot be encoded. That is a trade we take
 willingly -- a smaller benchmark whose numbers mean the same thing every run
 is worth more than a larger one whose numbers drift.
 """

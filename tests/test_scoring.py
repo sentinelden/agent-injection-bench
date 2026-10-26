@@ -1,6 +1,6 @@
 """Scoring is the part of a benchmark most worth testing.
 
-Every number the benchmark publishes traces back to a judgement here, so a
+Every number the benchmark publishes traces back to a judgment here, so a
 quiet bug in this file would show up as a confident, wrong security claim.
 """
 

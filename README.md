@@ -24,7 +24,7 @@ $ aib matrix --targets naive,paranoid --defenses none,delimit,spotlight
 
 Most published prompt-injection results are hard to compare and harder to reproduce. Three reasons, and this benchmark is built around avoiding all three.
 
-**They measure prompts, not channels.** A corpus of bare attack strings measures the wrong thing. Real injections arrive through a *channel* (a tool result, a fetched page, a filename, a calendar invite) and the channel is most of what makes them work. An agent that shrugs off `ignore previous instructions` typed by the user may well obey the identical sentence inside a web page it was asked to summarise. Every attack here declares its channel, and results are broken down by it.
+**They measure prompts, not channels.** A corpus of bare attack strings measures the wrong thing. Real injections arrive through a *channel* (a tool result, a fetched page, a filename, a calendar invite) and the channel is most of what makes them work. An agent that shrugs off `ignore previous instructions` typed by the user may well obey the identical sentence inside a web page it was asked to summarize. Every attack here declares its channel, and results are broken down by it.
 
 **They score with an LLM judge.** Using a model to grade a model introduces a second, unmeasured system into the measurement. Judge disagreement becomes benchmark noise nobody can attribute, and when the judge shares a family with the system under test, the result is not independent at all. Here, **every attack declares a machine-checkable success condition**: a canary string, a named tool call, a secret reaching a sink. Two runs of the same configuration produce the same number.
 

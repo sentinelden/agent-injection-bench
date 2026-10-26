@@ -1,4 +1,4 @@
-"""End-to-end behaviour of the harness and the summary arithmetic."""
+"""End-to-end behavior of the harness and the summary arithmetic."""
 
 from aib import defenses
 from aib.adapters import get as get_target

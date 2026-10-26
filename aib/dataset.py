@@ -8,7 +8,7 @@ that ship bare strings measure the wrong thing: real injections arrive through
 a channel -- a tool result, a fetched document, a filename, a calendar invite --
 and the channel is most of what makes them work. An agent that ignores
 "ignore previous instructions" typed by the user may well obey it when the
-same text arrives inside a web page it was asked to summarise.
+same text arrives inside a web page it was asked to summarize.
 
 So each attack declares:
 
