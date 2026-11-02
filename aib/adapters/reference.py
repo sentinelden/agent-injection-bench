@@ -31,6 +31,11 @@ _CANARY_HINT = re.compile(
 _TOOL_HINT = re.compile(r"call\s+(?:the\s+)?[\"']?([a-z_][a-z0-9_]*)[\"']?", re.IGNORECASE)
 
 
+# Enough for what the agent read to survive into what it writes, which is the
+# whole point of a chain that carries state from one stage to the next.
+_ARGUMENT_LIMIT = 2_000
+
+
 class NaiveAgent:
     name = "naive"
 
@@ -39,6 +44,9 @@ class NaiveAgent:
         # provenance tracking would.
         blob = "\n".join(m.get("content", "") for m in scenario.messages)
         blob += "\n" + "\n".join(scenario.tool_results.values())
+        # Tool descriptions are text the agent reads too, which is how a poisoned
+        # tool reaches it.
+        blob += "\n" + "\n".join(t.description for t in scenario.tools)
 
         text_parts: list[str] = ["Done."]
         calls: list[ToolCall] = []
@@ -53,7 +61,7 @@ class NaiveAgent:
                 # Hand it any attacker-looking value it can find, which is how
                 # exfiltration actually happens.
                 secret = scenario.attack.success.secret
-                args = {"input": secret} if secret and secret in blob else {"input": blob[:120]}
+                args = {"input": secret} if secret and secret in blob else {"input": blob[:_ARGUMENT_LIMIT]}
                 calls.append(ToolCall(name=candidate, arguments=args))
 
         return AgentResponse(text=" ".join(text_parts), tool_calls=calls)

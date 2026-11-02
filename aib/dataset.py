@@ -17,6 +17,7 @@ So each attack declares:
   injected       the hostile content delivered through the channel
   tools          the tool registry the agent is given for this scenario
   success        a machine-checkable condition (see scoring.py)
+  steps          for a chain, what arrives after the first turn (see ChainStep)
 
 Fields are validated on load. A malformed attack is a hard error rather than a
 silently skipped line, because a corpus that quietly shrinks produces scores
@@ -38,11 +39,17 @@ Channel = Literal[
     "metadata",         # hostile text in EXIF, headers, or similar
     "user_message",     # hostile text typed directly by the user (baseline)
     "multi_turn",       # hostile text planted in an earlier turn of history
+    "tool_chain",       # hostile text that needs several tool calls or sessions to pay off
 ]
 
 CHANNELS: tuple[str, ...] = (
     "tool_result", "document", "web_page", "filename",
-    "metadata", "user_message", "multi_turn",
+    "metadata", "user_message", "multi_turn", "tool_chain",
+)
+
+# Where a later step of a chain comes from.
+STEP_CHANNELS: tuple[str, ...] = (
+    "tool_result", "document", "web_page", "metadata", "user_message", "memory", "agent",
 )
 
 
@@ -96,6 +103,27 @@ class Tool:
 
 
 @dataclass
+class ChainStep:
+    """One later turn of a chain: what arrives, and in which conversation.
+
+    A compromise through intermediate state only works if the state carried it,
+    so a step can take its content from what the agent actually did. With
+    `from_call`, the content is the arguments of the agent's last call to that
+    tool. If the agent never made that call, the chain has broken and later steps
+    do not run, because an agent that refused the first stage has resisted.
+
+    `new_session` starts a fresh conversation, so the only thing that survives is
+    what the step carries, which is how memory poisoning and hand-offs work.
+    """
+
+    channel: str
+    content: str | None = None
+    from_call: str | None = None
+    task: str | None = None
+    new_session: bool = False
+
+
+@dataclass
 class Attack:
     id: str
     channel: str
@@ -109,6 +137,7 @@ class Attack:
     history: list[dict[str, str]] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     source: str | None = None   # citation, where the technique was first described
+    steps: list[ChainStep] = field(default_factory=list)
 
     @property
     def is_control(self) -> bool:
@@ -183,6 +212,10 @@ def _parse(raw: dict[str, Any], where: str) -> Attack:
                 f"({', '.join(sorted(tool_names)) or 'empty'})"
             )
 
+    steps = [_parse_step(s, where, tool_names) for s in raw.get("steps", [])]
+    if steps and raw["channel"] != "tool_chain":
+        raise DatasetError(f"{where}: only a tool_chain attack can have steps")
+
     return Attack(
         id=attack_id,
         channel=raw["channel"],
@@ -196,6 +229,29 @@ def _parse(raw: dict[str, Any], where: str) -> Attack:
         history=list(raw.get("history", [])),
         tags=list(raw.get("tags", [])),
         source=raw.get("source"),
+        steps=steps,
+    )
+
+
+def _parse_step(raw: dict[str, Any], where: str, tool_names: set[str]) -> ChainStep:
+    channel = raw.get("channel")
+    if channel not in STEP_CHANNELS:
+        raise DatasetError(
+            f"{where}: unknown step channel {channel!r}; expected one of {', '.join(STEP_CHANNELS)}"
+        )
+    content, from_call = raw.get("content"), raw.get("from_call")
+    if (content is None) == (from_call is None):
+        raise DatasetError(f"{where}: a step needs exactly one of content and from_call")
+    # A step fed by a tool the agent cannot call would never run, which would
+    # silently look like the agent resisting.
+    if from_call is not None and from_call not in tool_names:
+        raise DatasetError(f"{where}: step from_call={from_call!r} is not in this attack's tool registry")
+    return ChainStep(
+        channel=channel,
+        content=content,
+        from_call=from_call,
+        task=raw.get("task"),
+        new_session=bool(raw.get("new_session", False)),
     )
 
 

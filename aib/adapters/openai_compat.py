@@ -26,6 +26,7 @@ class OpenAICompatAgent:
         api_key: str | None = None,
         temperature: float = 0.0,
         timeout: float = 60.0,
+        max_rounds: int = 5,
     ) -> None:
         self.base_url = (base_url or os.environ.get("AIB_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
         self.model = model
@@ -34,6 +35,7 @@ class OpenAICompatAgent:
         # runs for sampling reasons cannot be used to compare defenses.
         self.temperature = temperature
         self.timeout = timeout
+        self.max_rounds = int(max_rounds)
         self.name = f"openai-compat:{model}"
 
     def __call__(self, scenario: Scenario) -> AgentResponse:
@@ -42,7 +44,7 @@ class OpenAICompatAgent:
         except ImportError:
             return AgentResponse(error="httpx not installed; pip install 'agent-injection-bench[http]'")
 
-        messages = [{"role": "system", "content": scenario.system_prompt}]
+        messages: list[dict[str, Any]] = [{"role": "system", "content": scenario.system_prompt}]
         messages.extend(scenario.messages)
 
         payload: dict[str, Any] = {
@@ -70,37 +72,54 @@ class OpenAICompatAgent:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        try:
-            response = httpx.post(
-                f"{self.base_url}/chat/completions",
-                json=payload,
-                headers=headers,
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            body = response.json()
-        except Exception as exc:  # noqa: BLE001 - surfaced as an ERROR outcome
-            return AgentResponse(error=f"{type(exc).__name__}: {exc}")
-
-        try:
-            message = body["choices"][0]["message"]
-        except (KeyError, IndexError) as exc:
-            return AgentResponse(error=f"unexpected response shape: {exc}")
-
+        # A hostile tool result only reaches a model if the model gets to read it,
+        # so a call is answered from the scenario's canned results and the model
+        # goes again. Nothing executes.
+        texts: list[str] = []
         calls: list[ToolCall] = []
-        for raw in message.get("tool_calls") or []:
-            function = raw.get("function", {})
-            arguments = function.get("arguments", "{}")
-            if isinstance(arguments, str):
-                try:
-                    arguments = json.loads(arguments)
-                except json.JSONDecodeError:
-                    # Malformed arguments are themselves interesting: the call
-                    # still happened, so record it rather than dropping it.
-                    arguments = {"_raw": arguments}
-            calls.append(ToolCall(name=function.get("name", ""), arguments=arguments))
+        for _ in range(self.max_rounds):
+            try:
+                response = httpx.post(
+                    f"{self.base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
+                body = response.json()
+            except Exception as exc:  # noqa: BLE001 - surfaced as an ERROR outcome
+                return AgentResponse(error=f"{type(exc).__name__}: {exc}")
 
-        return AgentResponse(text=message.get("content") or "", tool_calls=calls)
+            try:
+                message = body["choices"][0]["message"]
+            except (KeyError, IndexError) as exc:
+                return AgentResponse(error=f"unexpected response shape: {exc}")
+
+            if message.get("content"):
+                texts.append(message["content"])
+            raw_calls = message.get("tool_calls") or []
+            if not raw_calls:
+                break
+            messages.append(message)
+            for raw in raw_calls:
+                function = raw.get("function", {})
+                name = function.get("name", "")
+                arguments = function.get("arguments", "{}")
+                if isinstance(arguments, str):
+                    try:
+                        arguments = json.loads(arguments)
+                    except json.JSONDecodeError:
+                        # Malformed arguments are themselves interesting: the call
+                        # still happened, so record it rather than dropping it.
+                        arguments = {"_raw": arguments}
+                calls.append(ToolCall(name=name, arguments=arguments))
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": raw.get("id", ""),
+                    "content": scenario.tool_results.get(name, ""),
+                })
+
+        return AgentResponse(text="\n".join(texts), tool_calls=calls)
 
 
 @register("openai-compat")

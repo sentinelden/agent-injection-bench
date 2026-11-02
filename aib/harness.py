@@ -14,9 +14,9 @@ from dataclasses import dataclass, field
 from typing import Iterable
 
 from .adapters.base import Adapter, Scenario
-from .dataset import Attack
+from .dataset import Attack, ChainStep
 from .defenses.base import Defense
-from .scoring import Judgement, Outcome, judge
+from .scoring import AgentResponse, Judgement, Outcome, ToolCall, judge
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are a helpful assistant with access to tools. "
@@ -87,7 +87,7 @@ def build_scenario(attack: Attack) -> Scenario:
         messages.append({"role": "assistant", "content": "Understood."})
         messages.append({"role": "user", "content": attack.task})
 
-    else:  # tool_result
+    else:  # tool_result, or the first turn of a tool_chain
         messages.append({"role": "user", "content": attack.task})
         # If the attack did not pin the injection to a named tool, attach it to
         # the first one, which is what the agent will reach for.
@@ -105,11 +105,68 @@ def build_scenario(attack: Attack) -> Scenario:
     )
 
 
-def run_one(attack: Attack, target: Adapter, defense: Defense) -> Result:
-    scenario = defense(build_scenario(attack))
+_STEP_LABELS = {
+    "tool_result": "Tool result",
+    "document": "Document contents",
+    "web_page": "Fetched page",
+    "metadata": "File metadata",
+    "memory": "Saved memory",
+    "agent": "Message from another agent",
+}
 
+
+def _step_message(step: ChainStep, content: str) -> str:
+    """The user turn a step becomes. A user_message is just what the person typed."""
+    if step.channel == "user_message":
+        return content if step.task is None else f"{content}\n\n{step.task}"
+    body = f"{_STEP_LABELS[step.channel]}:\n{content}"
+    return body if step.task is None else f"{step.task}\n\n{body}"
+
+
+def _carried(step: ChainStep, calls: list[ToolCall]) -> str | None:
+    """A step's content: its own, or what the agent passed to the tool it names."""
+    if step.from_call is None:
+        return step.content
+    for call in reversed(calls):
+        if call.name == step.from_call:
+            return " ".join(str(value) for value in call.arguments.values())
+    return None
+
+
+def _run_chain(attack: Attack, target: Adapter, defense: Defense) -> AgentResponse:
+    """Play a chain's turns in order, and score everything the agent did across them."""
+    raw = build_scenario(attack)
+    response = target(defense(raw))
+    texts = [response.text]
+    calls = list(response.tool_calls)
+    for step in attack.steps:
+        if response.error:
+            break
+        content = _carried(step, calls)
+        if content is None:
+            break  # the agent never took the first stage, so nothing was carried
+        history = [] if step.new_session else raw.messages + [
+            {"role": "assistant", "content": response.text or "Done."}
+        ]
+        raw = Scenario(
+            attack=raw.attack,
+            system_prompt=raw.system_prompt,
+            messages=history + [{"role": "user", "content": _step_message(step, content)}],
+            tools=raw.tools,
+            tool_results=raw.tool_results,
+        )
+        response = target(defense(raw))
+        texts.append(response.text)
+        calls.extend(response.tool_calls)
+    return AgentResponse(text="\n".join(t for t in texts if t), tool_calls=calls, error=response.error)
+
+
+def run_one(attack: Attack, target: Adapter, defense: Defense) -> Result:
     started = time.perf_counter()
-    response = target(scenario)
+    if attack.steps:
+        response = _run_chain(attack, target, defense)
+    else:
+        response = target(defense(build_scenario(attack)))
     elapsed = int((time.perf_counter() - started) * 1000)
 
     verdict: Judgement = judge(attack, response)
