@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/sentinelden/agent-injection-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/sentinelden/agent-injection-bench/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/agent-injection-bench)](https://pypi.org/project/agent-injection-bench/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/sentinelden/agent-injection-bench/blob/main/LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org)
 
 ```
@@ -81,7 +81,7 @@ aib describe ex-001
 
 **Families**: `instruction_override`, `context_termination`, `authority_claim`, `data_exfiltration`, `tool_redirection`, `encoding`, `role_play`, `conversation_hijack`, `tool_chain`, plus `baseline` and `control`
 
-The corpus is one JSONL file at [`aib/data/attacks.jsonl`](aib/data/attacks.jsonl), diffable, and a PR adding an attack is reviewable as text. Schema and field semantics are documented in [`aib/dataset.py`](aib/dataset.py).
+The corpus is one JSONL file at [`aib/data/attacks.jsonl`](https://github.com/sentinelden/agent-injection-bench/blob/main/aib/data/attacks.jsonl), diffable, and a PR adding an attack is reviewable as text. Schema and field semantics are documented in [`aib/dataset.py`](https://github.com/sentinelden/agent-injection-bench/blob/main/aib/dataset.py).
 
 ### Chains
 
@@ -99,7 +99,7 @@ Some attacks only pay off across several steps, so a single call measures them b
 
 The chains cover the lethal trifecta, cross-tool request forgery, poisoned and shadowed tool descriptions, memory written in one session and acted on in another, delayed tool invocation, agent hand-offs, self-replicating messages, and data carried out through a search query, a Markdown image or a redirect on an allowed host.
 
-[`agenticguard/`](agenticguard/) has a companion corpus that asks the next question: given that a model was compromised, what does a policy layer let through? It replays the calls the model would make, with the decision expected at each one.
+[`agenticguard/`](https://github.com/sentinelden/agent-injection-bench/tree/main/agenticguard) has a companion corpus that asks the next question: given that a model was compromised, what does a policy layer let through? It replays the calls the model would make, with the decision expected at each one.
 
 ### Success criteria
 
@@ -181,7 +181,7 @@ aib validate        # corpus integrity
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE). The corpus is released under the same terms: use it, fork it, cite it.
+MIT. See [`LICENSE`](https://github.com/sentinelden/agent-injection-bench/blob/main/LICENSE). The corpus is released under the same terms: use it, fork it, cite it.
 
 ## Changes in 0.2.0
 
