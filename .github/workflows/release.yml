@@ -1,0 +1,63 @@
+name: Release
+
+# Publishes to PyPI when a version tag is pushed, with no stored token: PyPI
+# trusts this workflow in this repository (Trusted Publishing). To release, set
+# the version in pyproject.toml and aib/__init__.py, then push the tag vX.Y.Z.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+# The token gets nothing more. Only the publish job can ask PyPI for a credential.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: pip install -e '.[dev]' build twine
+      # A version can never be replaced once it is on PyPI, so a tag that does
+      # not match what the package says it is stops here.
+      - name: The tag is the version in the package
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os, sys, tomllib
+          import aib
+          tag = os.environ["TAG"].removeprefix("v")
+          with open("pyproject.toml", "rb") as f:
+              declared = tomllib.load(f)["project"]["version"]
+          if not tag == declared == aib.__version__:
+              sys.exit(f"tag {tag}, pyproject {declared}, aib.__version__ {aib.__version__}: these must match")
+          print(f"releasing {tag}")
+          PY
+      - run: pytest -q
+      - run: aib validate
+      - run: python -m build
+      - run: twine check dist/*
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # Replaces the permissions above, here alone. This job runs none of the
+    # repository's code, so what it publishes is what the build job checked.
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
