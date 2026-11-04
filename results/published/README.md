@@ -1,5 +1,7 @@
 # Published results: a shipped input filter (`lora-sanitizer`) against Claude Haiku 4.5 and Sonnet 4.6
 
+These results predate 0.2.0: 21 attacks, no chains, and this run's own tool loop, since replaced by the adapter's. Numbers from a current run won't match them.
+
 Run 2026-09-25 with the corpus at `f6d5f9c`, `temperature=0`, through the
 OpenAI-compatible adapter **with the tool loop** (`max_tool_rounds=2`), so
 `tool_result` attacks actually reach the model. Endpoint: Anthropic's

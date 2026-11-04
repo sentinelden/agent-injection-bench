@@ -125,6 +125,7 @@ Measured side by side against the same corpus, because *"is this model safe"* is
 | `spotlight` | Interleaves a per-run nonce through untrusted content ([Hines et al., 2024](https://arxiv.org/abs/2403.14720)). |
 | `filter` | Strips imperative-looking lines from untrusted content. |
 | `allowlist` | Removes tools the stated task does not need, capability control, not persuasion control. |
+| `lora-sanitizer` | A filter that ships in production: 21 patterns that strip and mark matches, after normalizing whitespace. [Published results](https://github.com/sentinelden/agent-injection-bench/tree/main/results/published). |
 
 None is presented as sufficient. Residual compromise is reported per defense precisely so the gaps stay visible.
 
@@ -175,13 +176,17 @@ The most valuable contributions:
 Attacks must be techniques already described publicly or trivially derivable. This is a measurement instrument, not an exploit collection.
 
 ```sh
-pytest              # 44 tests
+pytest              # 50 tests
 aib validate        # corpus integrity
 ```
 
 ## License
 
 MIT. See [`LICENSE`](https://github.com/sentinelden/agent-injection-bench/blob/main/LICENSE). The corpus is released under the same terms: use it, fork it, cite it.
+
+## Changes since 0.2.1
+
+- **`lora-sanitizer`**, a filter that ships in production, measured as a defense, with published results. From Nikhiljangra07. It makes both tested models worse on this corpus, mostly because collapsing whitespace flattens documents and tool results.
 
 ## Changes in 0.2.1
 
