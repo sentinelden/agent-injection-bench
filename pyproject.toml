@@ -1,6 +1,6 @@
 [project]
 name = "agent-injection-bench"
-version = "0.2.0"
+version = "0.2.1"
 description = "An open benchmark for prompt injection against tool-calling agents."
 readme = "README.md"
 license = "MIT"

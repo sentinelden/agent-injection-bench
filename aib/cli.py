@@ -15,6 +15,7 @@ from pathlib import Path
 
 from . import adapters, dataset, defenses
 from .adapters import reference  # noqa: F401  -- registers built-in targets
+from .adapters import openai_compat  # noqa: F401  -- registers the HTTP target the README documents
 from .harness import Result, Summary, run, summarise
 
 # Inside the package, so it survives a non-editable `pip install`.

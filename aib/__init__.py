@@ -1,7 +1,7 @@
 """agent-injection-bench: an open benchmark for prompt injection against
 tool-calling agents."""
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from .dataset import Attack, load
 from .harness import Result, Summary, run, run_one, summarise

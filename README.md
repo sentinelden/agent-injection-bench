@@ -183,6 +183,10 @@ aib validate        # corpus integrity
 
 MIT. See [`LICENSE`](https://github.com/sentinelden/agent-injection-bench/blob/main/LICENSE). The corpus is released under the same terms: use it, fork it, cite it.
 
+## Changes in 0.2.1
+
+- **`--target openai-compat:...` works from the command line.** The CLI never loaded the adapter, so the usage this README documents failed with `KeyError: unknown target 'openai-compat'`. Reported by Nikhiljangra07 in [pull request 1](https://github.com/sentinelden/agent-injection-bench/pull/1).
+
 ## Changes in 0.2.0
 
 - **Chains**: 12 multi-step scenarios and 2 controls, with `steps` in the format.
